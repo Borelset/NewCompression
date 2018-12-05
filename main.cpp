@@ -8,19 +8,27 @@ int main(int argc, char** argv) {
         exit(0);
     }
 
-/*
-    char testStr[] = "ABCDABCf7w9egusducaljsdbcusa9gv9s7dgvbasdubcudsbicuidsaov907sgvbsd7 bb iosdbciuge97egcdubcisdbcisdbcsdcvvwvh78h0sd9ubvaaubvs7sd90vb9a9sd7v";
+    char testStr[] = "abcdefgABCDEFG1234567";
     ArithmeticCoder arithmeticCoder(10, 10);
-    char buffer[200];
+    char buffer[200 + sizeof(ArithmeticCodeHeader)];
     int bits;
+    memset(buffer, 0, 200 + sizeof(ArithmeticCodeHeader));
     arithmeticCoder.encode(testStr, sizeof(testStr), buffer, 200, &bits);
     printf("bits:%d\n", bits);
-    for(int i=0; i<10; i++){
+    for(int i=0 + sizeof(ArithmeticCodeHeader); i<200 + sizeof(ArithmeticCodeHeader); i++){
         printf("%x ", buffer[i]);
     }
-*/
+    ArithmeticCoder arithmeticCoder1(10, 10);
+    int decodeLength = arithmeticCoder1.decodeLength(buffer);
+    char decodeBuffer[decodeLength+1];
+    memset(decodeBuffer, 0, decodeLength+1);
+    int ret = arithmeticCoder1.decode(buffer, 200 + sizeof(ArithmeticCodeHeader), decodeBuffer);
+    printf("ret:%d\n", ret);
+    printf("%s\n", decodeBuffer);
 
 
+
+/*
     CompressionConfig compressionConfig;
     compressionConfig.range = 0.0001;
     compressionConfig.precisionType = PrecisionType::Relative;
@@ -39,23 +47,55 @@ int main(int argc, char** argv) {
 
     FloatCompressor floatCompressor(max - min, total*8 / fileSize);
     FloatHolder floatHolder;
-    Fitter fitter(compressionConfig, floatHolder, floatCompressor);
+    MultiplierHolder multiplierHolder;
+    Fitter fitter(compressionConfig, floatHolder, floatCompressor, multiplierHolder);
+
     int bitBufferLength = BitHolderThreeBytes::getRequiredBufferCount(fileSize/8) + sizeof(int);
-    char bitBuffer[bitBufferLength];
+    char bitBuffer[bitBufferLength + sizeof(ArithmeticCodeHeader)];
     fitter.doFit(buffer, fileSize/8, bitBuffer, bitBufferLength);
+
     int floatBufferLength = floatHolder.getLength();
-    char floatBuffer[floatBufferLength];
+    char floatBuffer[floatBufferLength + sizeof(ArithmeticCodeHeader)];
     floatHolder.copy(floatBuffer);
+
+    int multiplierBufferLength = multiplierHolder.getLength();
+    char multiplierBuffer[multiplierBufferLength + sizeof(ArithmeticCodeHeader)];
+    multiplierHolder.copy(multiplierBuffer);
+
+    printf("bitLength:%d, floatLength:%d, multiplierLength:%d\n", bitBufferLength, floatBufferLength, multiplierBufferLength);
 
     std::string newFileName(argv[1]);
     newFileName += ".nc";
     FileWriter fileWriter(newFileName);
-    fileWriter.writeData(bitBuffer, bitBufferLength);
-    fileWriter.writeData(floatBuffer, floatBufferLength);
+
+    char* bitBufferAC = (char*)malloc(bitBufferLength);
+    memset(bitBufferAC, 0, bitBufferLength);
+    int bitACLength = 0;
+
+    char* floatBufferAC = (char*)malloc(floatBufferLength);
+    memset(floatBufferAC, 0, floatBufferLength);
+    int floatACLength = 0;
+
+    char* multiplierBufferAC = (char*)malloc(multiplierBufferLength);
+    memset(multiplierBufferAC, 0, multiplierBufferLength);
+    int multiplierACLength = 0;
+
+    ArithmeticCoder arithmeticCoder(0, 0);
+    arithmeticCoder.encode(bitBuffer, bitBufferLength, bitBufferAC, bitBufferLength, &bitACLength);
+    arithmeticCoder.encode(floatBuffer, floatBufferLength, floatBufferAC, floatBufferLength, &floatACLength);
+    arithmeticCoder.encode(multiplierBuffer, multiplierBufferLength, multiplierBufferAC, multiplierBufferLength, &multiplierACLength);
+
+    fileWriter.writeData(bitBufferAC, bitACLength/8+1);
+    fileWriter.writeData(floatBufferAC, floatACLength/8+1);
+    fileWriter.writeData(multiplierBufferAC, multiplierACLength/8+1);
+
+    free(bitBufferAC);
+    free(floatBufferAC);
+    free(multiplierBufferAC);
+    */
 
 
-
-/*==
+/*
     double testValue = 0.5;
     char* ptr = (char*)&testValue;
     printf("sizeof:%d\n", sizeof(testValue));

@@ -25,11 +25,18 @@ public:
         long precisionExpo = expo(precision);
         int requiredManti = 0;
         if(requiredRangeExpo - precisionExpo < 0){
+            case0++;
             requiredManti = 0;
         }else if(requiredRangeExpo - precisionExpo > normManti){
+            case1++;
             requiredManti = normManti;
+            totalManti += requiredManti;
+            count++;
         }else{
+            case2++;
             requiredManti = requiredRangeExpo - precisionExpo;
+            totalManti += requiredManti;
+            count++;
         }
 
         uint8_t requiredLength = 2;
@@ -45,6 +52,10 @@ public:
 
     void test(double value){
         printf("expo: %ld, manti:%d\n", expo(value), mantiBits(value));
+    }
+    void print(){
+        printf("case0:%d, case1:%d, case2:%d\n", case0, case1, case2);
+        printf("avenge manti:%f\n", (double)totalManti / count);
     }
 
 private:
@@ -83,6 +94,11 @@ private:
     double median;
     long requiredRangeExpo;
     int requiredMantiLength;
+    int case0 = 0;
+    int case1 = 0;
+    int case2 = 0;
+    int totalManti = 0;
+    int count = 0;
 };
 
 #endif //NC_FLOATCOMPRESSOR_H

@@ -7,8 +7,8 @@
 
 #include "FileReader.h"
 #include "FileWriter.h"
-#include "SevenMethods/CompressionConfig.h"
-#include "SevenMethods/Type.h"
+#include "CompressionConfig.h"
+#include "Type.h"
 #include "FloatCompressor.h"
 #include <cmath>
 #include <cstdio>
@@ -18,8 +18,8 @@
 
 class Fitter{
 public:
-    Fitter(const CompressionConfig& cpc, FloatHolder& fh, FloatCompressor& fc) :
-        compressionConfig(cpc), floatHolder(fh), floatCompressor(fc)
+    Fitter(const CompressionConfig& cpc, FloatHolder& fh, FloatCompressor& fc, MultiplierHolder& mh) :
+        compressionConfig(cpc), floatHolder(fh), floatCompressor(fc), multiplierHolder(mh)
     {
 
     }
@@ -31,34 +31,22 @@ public:
             return -1;
         }
 
-        char floatBuffer[sizeof(double)];
+        char floatBuffer[sizeof(double)*2];
         int compressedLength = 0;
 
-        int hitting = 0, missing = 0;
+        int hitting = 0, missing = 0, ranging = 0;
         double acceptedRange = compressionConfig.range;
 
         lastValues[0] = input[0];
-        if(compressionConfig.precisionType == PrecisionType::Relative){
-            acceptedRange = compressionConfig.range * input[0];
-        }
-        floatCompressor.compress(input[0], acceptedRange, floatBuffer, &compressedLength);
-        floatHolder.addRecord(floatBuffer, compressedLength);
+        Unpredited(compressionConfig, floatCompressor, floatHolder, input[0]);
 
         lastValues[1] = input[1];
-        if(compressionConfig.precisionType == PrecisionType::Relative){
-            acceptedRange = compressionConfig.range * input[2];
-        }
-        floatCompressor.compress(input[1], acceptedRange, floatBuffer, &compressedLength);
-        floatHolder.addRecord(floatBuffer, compressedLength);
+        Unpredited(compressionConfig, floatCompressor, floatHolder, input[1]);
 
         lastValues[2] = input[2];
-        if(compressionConfig.precisionType == PrecisionType::Relative){
-            acceptedRange = compressionConfig.range * input[2];
-        }
-        floatCompressor.compress(input[2], acceptedRange, floatBuffer, &compressedLength);
-        floatHolder.addRecord(floatBuffer, compressedLength);
+        Unpredited(compressionConfig, floatCompressor, floatHolder, input[2]);
 
-        std::fstream fstream("log", std::ios::out);
+        //std::fstream fstream("log", std::ios::out);
 
         unsigned requiredBufferCount = BitHolderThreeBytes::getRequiredBufferCount(inputLength);
         BitHolderThreeBytes bitHolderThreeBytes[requiredBufferCount];
@@ -71,27 +59,36 @@ public:
             if(compressionConfig.precisionType == PrecisionType::Relative){
                 acceptedRange = compressionConfig.range * input[i];
             }
+
             std::string logMessage;
             double minDelta = acceptedRange;
             int methodIndex = -1;
-            fstream << "i=" << i << ", origin data:" << input[i] << std::endl;
+            //fstream << "i=" << i << ", origin data:" << input[i] << std::endl;
             for(int j=0; j< callbacks.size(); j++){
                 double methodValue = callbacks[j](lastValues[0], lastValues[1], lastValues[2], acceptedRange);
-                fstream << "m" << j << "=" << methodValue << ", delta=" << fabs(methodValue - input[i]) << ", minDelta=" << fabs(minDelta) << std::endl;
+                //fstream << "m" << j << "=" << methodValue << ", delta=" << fabs(methodValue - input[i]) << ", minDelta=" << fabs(minDelta) << std::endl;
                 if(fabs(methodValue - input[i]) < fabs(minDelta)){
                     methodIndex = j;
                     minDelta = methodValue - input[i];
                 }
             }
-            fstream << "best:m" << methodIndex << ", finally delta:" << minDelta << std::endl << "-----------------------------------" << std::endl;
+            //fstream << "best:m" << methodIndex << ", finally delta:" << minDelta << std::endl << "-----------------------------------" << std::endl;
+
             if(methodIndex == -1) {
+                int multiplier = fabs((input[i] - lastValues[2]) / acceptedRange);
+                if( multiplier < compressionConfig.diffRange ){
+                    multiplierHolder.addRecord(multiplier);
+                    methodIndex = 6;
+                    ranging++;
+                }else{
+                    methodIndex = 7;
+                    floatCompressor.compress(input[i], acceptedRange, floatBuffer, &compressedLength);
+                    floatHolder.addRecord(floatBuffer, compressedLength);
+                    missing++;
+                }
                 lastValues[0] = lastValues[1];
                 lastValues[1] = lastValues[2];
                 lastValues[2] = input[i];
-                methodIndex = callbacks.size();
-                floatCompressor.compress(input[i], acceptedRange, floatBuffer, &compressedLength);
-                floatHolder.addRecord(floatBuffer, compressedLength);
-                missing++;
             }else{
                 lastValues[0] = lastValues[1];
                 lastValues[1] = lastValues[2];
@@ -103,16 +100,31 @@ public:
                 memcpy(output+3*bitHolderIndex, bitHolderThreeBytes[bitHolderIndex].getBuffer(), 3);
                 bitHolderIndex++;
             }
+
         }
-        printf("hitting=%d, missing=%d, total=%d\n", hitting, missing, hitting+missing);
-        fstream.close();
+        printf("hitting=%d, missing=%d, ranging=%d, total=%d\n", hitting, missing, ranging, hitting+missing+ranging);
+        //fstream.close();
     }
 private:
+    void Unpredited(CompressionConfig& cc, FloatCompressor& fc, FloatHolder& fh, double value){
+        double acceptedRange;
+        if(cc.precisionType == PrecisionType::Relative){
+            acceptedRange = compressionConfig.range * value;
+        }else{
+            compressionConfig.range;
+        }
+        char floatBuffer[sizeof(double)*2];
+        int compressedLength;
+        floatCompressor.compress(value, acceptedRange, floatBuffer, &compressedLength);
+        floatHolder.addRecord(floatBuffer, compressedLength);
+    }
+
     double lastValues[MAX_LAST_VALUE_COUNT];
 
     CompressionConfig compressionConfig;
     FloatHolder& floatHolder;
     FloatCompressor& floatCompressor;
+    MultiplierHolder& multiplierHolder;
 };
 
 #endif //NC_FITTER_H
