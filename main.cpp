@@ -38,10 +38,12 @@ int main(int argc, char** argv) {
         FloatCompressor floatCompressor(max - min, total*8 / fileSize);
         FloatHolder floatHolder;
         MultiplierHolder multiplierHolder;
-        PrecisionHolder precisionHolder;
+        PrecisionHolder precisionHolder(fileSize);
         Fitter fitter(compressionConfig, floatHolder, floatCompressor, multiplierHolder, precisionHolder);
 
+        printf("file size:%d\n", fileSize);
         int bitBufferLength = BitHolderThreeBytes::getRequiredBufferCount(fileSize/8) * 3;
+        printf("count:%u\n", BitHolderThreeBytes::getRequiredBufferCount(fileSize/8));
         char bitBuffer[bitBufferLength];
         fitter.doFit(buffer, fileSize/8, bitBuffer, bitBufferLength);
 
@@ -100,12 +102,12 @@ int main(int argc, char** argv) {
 
         struct timeval t0, t1;
         gettimeofday(&t0, nullptr);
-        staticcodes::acoder ac(ifs, ofs);
+        //staticcodes::acoder ac(ifs, ofs);
         gettimeofday(&t1, nullptr);
         printf("ac duration:%fs\n", (t1.tv_sec-t0.tv_sec) + double(t1.tv_usec - t0.tv_usec) / 1000000);
 
         gettimeofday(&t0, nullptr);
-        //adaptivecodes::ahcoder h(ifs, ofs);
+        adaptivecodes::ahcoder h(ifs, ofs);
         gettimeofday(&t1, nullptr);
         printf("ah duration:%fs\n", (t1.tv_sec-t0.tv_sec) + double(t1.tv_usec - t0.tv_usec) / 1000000);
 
@@ -113,9 +115,10 @@ int main(int argc, char** argv) {
         //staticcodes::pcoder<staticcodes::huffman> ph(ifs, ofs);
         gettimeofday(&t1, nullptr);
         printf("sh duration:%fs\n", (t1.tv_sec-t0.tv_sec) + double(t1.tv_usec - t0.tv_usec) / 1000000);
+        
 
     }else{
-
+/*
         std::ifstream ifs;
         ifs.open(argv[1], std::ios::binary);
         std::ofstream ofs;
@@ -125,8 +128,9 @@ int main(int argc, char** argv) {
 
 
         FileReader fileReader(outName + ".tmp");
-        //std::string outName(argv[1]);
-        //FileReader fileReader(outName);
+        */
+        std::string outName(argv[1]);
+        FileReader fileReader(outName);
         FileHeader fileHeader;
         fileReader.readFile((char*)&fileHeader, sizeof(fileHeader));
 
@@ -178,6 +182,7 @@ int main(int argc, char** argv) {
             printf("%x ", bitBuffer[i]);
         }
         printf("\n");
+        int segmentIndex = 0;
         for(int i=0; i<doubleCount-3; i++){
             int groupIndex = i / 8;
             int groupOffset = i % 8;
@@ -229,11 +234,6 @@ int main(int argc, char** argv) {
             array[method]++;
             if(method == 6){
                 doubleBuffer = (*multiplierPtr) * PrecisionHolder::CompressedToDouble(precisionPtr) + lastValue[2];
-                if(i == 280769){
-                    char* test = (char*)precisionPtr;
-                    printf("%x %x\n", precisionPtr[0], precisionPtr[1]);
-                }
-                precisionPtr++;
                 multiplierPtr++;
                 lastValue[0] = lastValue[1];
                 lastValue[1] = lastValue[2];
@@ -257,7 +257,12 @@ int main(int argc, char** argv) {
                 fileWriter.writeDouble(doubleBuffer / pow(2,53));
                 fstream << "compressed:" << doubleBuffer / pow(2, 53) << " type:2" << std::endl;
             }
-
+            if(segmentIndex == 31){
+                segmentIndex = 0;
+                precisionPtr++;
+            }else{
+                segmentIndex++;
+            }
         }
         for(int i=0; i<8; i++){
             printf("method[%d]:%d\n", i, array[i]);

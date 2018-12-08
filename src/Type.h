@@ -44,7 +44,7 @@ static std::vector<Callbacks> callbacks = {
 class BitHolderThreeBytes{
 public:
     static unsigned getRequiredBufferCount(int length){
-        if(length % 8 ==0){
+        if((length-3) % 8 == 0){
             return (length-3)/ 8;
         }else{
             return (length-3)/ 8 + 1;
@@ -157,7 +157,9 @@ struct CompressedPrecision{
 
 class PrecisionHolder{
 public:
-    PrecisionHolder(){}
+    PrecisionHolder(int filesize){
+        list.reserve(filesize / 8 / 32 + 1);
+    }
     void addRecord(CompressedPrecision* buffer){
         list.push_back(*buffer);
         count += sizeof(CompressedPrecision);
@@ -173,6 +175,10 @@ public:
             n++;
         }
     }
+    double get(int index){
+        CompressedPrecision compressedPrecision = list[index];
+        return CompressedToDouble(&compressedPrecision);
+    }
     static double CompressedToDouble(CompressedPrecision* compressedPrecision){
         double result;
         char* resultPtr = (char*)&result;
@@ -181,7 +187,7 @@ public:
         return result;
     }
 private:
-    std::list<CompressedPrecision> list;
+    std::vector<CompressedPrecision> list;
     int count = 0;
 };
 

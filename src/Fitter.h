@@ -35,7 +35,7 @@ public:
         char floatBuffer[sizeof(double)*2];
         int compressedLength = 0;
 
-        int hitting = 0, missing = 0, ranging = 0, tooSmall = 0;
+        int hitting = 0, missing = 0, ranging = 0, skip = 0;
         double acceptedRange = compressionConfig.range;
         double fixedAcceptedRange = 0.0;
 
@@ -59,15 +59,46 @@ public:
         unsigned requiredBufferCount = BitHolderThreeBytes::getRequiredBufferCount(inputLength);
         BitHolderThreeBytes bitHolderThreeBytes[requiredBufferCount];
         int bitHolderIndex = 0;
+        int segmentIndex = 0;
+        double pwRange = 0.0;
+
+        acceptedRange = 1e300;
+        for(int i=3; i<inputLength; i++){
+            if(segmentIndex < 32 && input[i] != 0){
+                pwRange = input[i] * RESIZING;
+                pwRange *= compressionConfig.range;
+                if(acceptedRange > pwRange){
+                    acceptedRange = pwRange;
+                }
+                segmentIndex++;
+            }else if(input[i] == 0){
+                segmentIndex++;
+            } else{
+                CompressedPrecision compressedPrecision;
+                char* ptr = (char*)&acceptedRange;
+                memcpy(&compressedPrecision, ptr+6, sizeof(CompressedPrecision));
+                precisionHolder.addRecord(&compressedPrecision);
+                segmentIndex = 1;
+                pwRange = input[i] * RESIZING;
+                pwRange *= compressionConfig.range;
+                acceptedRange = input[i]? pwRange : 1e300;
+            }
+        }
+        {
+
+            CompressedPrecision compressedPrecision;
+            char* ptr = (char*)&acceptedRange;
+            memcpy(&compressedPrecision, ptr+6, sizeof(CompressedPrecision));
+            precisionHolder.addRecord(&compressedPrecision);
+        }
 
         for(int i=3; i<inputLength; i++){
             input[i] *= RESIZING;
             CompressedPrecision compressedPrecision;
             if(compressionConfig.precisionType == PrecisionType::Relative){
                 acceptedRange = compressionConfig.range * input[i];
-                char* ptr = (char*)&acceptedRange;
-                memcpy(&compressedPrecision, ptr+6, sizeof(CompressedPrecision));
-                fixedAcceptedRange = PrecisionHolder::CompressedToDouble(&compressedPrecision);
+                int index = (i - 3) / 32;
+                fixedAcceptedRange = precisionHolder.get(index);
             }
 
             std::string logMessage;
@@ -87,15 +118,18 @@ public:
             if(methodIndex == -1) {
                 double diffValue = input[i] - lastValues[2] - floatCompressor.getMedian();
                 int multiplier = diffValue / fixedAcceptedRange;
+
+                double diffValue2 = input[i] - lastValues[1] - floatCompressor.getMedian();
+                int multiplier2 = diffValue2 / fixedAcceptedRange;
+
+                double diffValue3 = input[i] - lastValues[0] - floatCompressor.getMedian();
+                int multiplier3 = diffValue3 / fixedAcceptedRange;
+
                 lastValues[0] = lastValues[1];
                 lastValues[1] = lastValues[2];
 
-                if(fixedAcceptedRange == 0){
-                    tooSmall++;
-                }
-
                 if(fixedAcceptedRange != 0 && abs(multiplier) < compressionConfig.diffRange){
-                    precisionHolder.addRecord(&compressedPrecision);
+                    //precisionHolder.addRecord(&compressedPrecision);
                     multiplierHolder.addRecord(multiplier);
                     methodIndex = 6;
                     lastValues[2] = lastValues[2] + multiplier * fixedAcceptedRange;
@@ -103,6 +137,10 @@ public:
 
                     fstream << "ori:" << input[i] << "\tpred:" << lastValues[2] << "\trate:" << lastValues[2] / input[i] << "\ttype:" << 1;
                     fstream << "\tmultiplier:" << multiplier << " fixedAcceptedRange:" << fixedAcceptedRange << std::endl;
+                }else if(fixedAcceptedRange != 0 && abs(multiplier2) < compressionConfig.diffRange){
+                    skip++;
+                }else if(fixedAcceptedRange != 0 && abs(multiplier3) < compressionConfig.diffRange){
+                    skip++;
                 }else{
                     //printf("ori:%f, prev:%f, accr:%f\n", input[i], lastValues[2] + floatCompressor.getMedian(), acceptedRange);
                     //printf("\tmultiplier:%d\n", multiplier);
@@ -131,7 +169,7 @@ public:
                 bitHolderIndex++;
             }
         }
-        printf("hitting=%d, missing=%d, ranging=%d, tooSmall=%d, total=%d\n", hitting, missing, ranging, tooSmall, hitting+missing+ranging);
+        printf("hitting=%d, missing=%d, ranging=%d, skip=%d, total=%d\n", hitting, missing, ranging, skip, hitting+missing+ranging);
         fstream.close();
     }
 private:
