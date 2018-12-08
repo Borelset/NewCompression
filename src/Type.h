@@ -9,34 +9,35 @@
 #include <functional>
 #include <vector>
 #include <list>
+#include "CompressionConfig.h"
 
-typedef std::function<double(double, double, double, double)> Callbacks;
+typedef std::function<double(double, double, double)> Callbacks;
 
-double m0(double x1, double x2, double x3, double range){
+double m0(double x1, double x2, double x3){
     return x3;
 }
 
-double m1(double x1, double x2, double x3, double range){
+double m1(double x1, double x2, double x3){
     return x3 * 2 - x2;
 }
 
-double m2(double x1, double x2, double x3, double range){
-    return x3 + range;
+double m2(double x1, double x2, double x3){
+    return (x1 + x2 + x3) / 3;
 }
 
-double m3(double x1, double x2, double x3, double range){
-    return x3 - range;
+double m3(double x1, double x2, double x3){
+    return 0.0;
 }
 
-double m4(double x1, double x2, double x3, double range){
-    return x3 * x3 / x2;
+double m4(double x1, double x2, double x3){
+    return x3 * x2 / x1;
 }
 
-double m5(double x1, double x2, double x3, double range){
-    return x1;
+double m5(double x1, double x2, double x3){
+    return x3;
 }
 
-std::vector<Callbacks> callbacks = {
+static std::vector<Callbacks> callbacks = {
         m0, m1, m2, m3, m4, m5
 };
 
@@ -44,9 +45,9 @@ class BitHolderThreeBytes{
 public:
     static unsigned getRequiredBufferCount(int length){
         if(length % 8 ==0){
-            return (length-3) * 3 / 8;
+            return (length-3)/ 8;
         }else{
-            return (length-3) * 3 / 8 + 1;
+            return (length-3)/ 8 + 1;
         }
     }
     BitHolderThreeBytes(){
@@ -111,16 +112,12 @@ public:
             list.push_back(input[i]);
         }
         length += len;
-        counter += 1;
     }
     int getLength(){
-        return length + sizeof(int);
+        return length;
     }
     int copy(char* buffer){
-        int* intPtr = (int*)buffer;
-        intPtr[0] = counter;
-
-        int index = 0 + sizeof(int);
+        int index = 0;
         for(auto bufferIter = list.begin(); bufferIter != list.end(); bufferIter++){
             buffer[index] = *bufferIter;
             index++;
@@ -129,36 +126,80 @@ public:
 private:
     std::list<char> list;
     int length = 0;
-    int counter = 0;
 };
 
 class MultiplierHolder{
 public:
     MultiplierHolder(){}
-    void addRecord(int value){
+    void addRecord(int16_t value){
         list.push_back(value);
         counter++;
     }
     void copy(char* buffer){
-        int* header = (int*)buffer;
-        header[0] = counter;
-        int n = 1;
+        int16_t* intPtr = (int16_t*)buffer;
+        int n = 0;
         for(auto iter = list.begin(); iter != list.end(); iter++){
-            header[n] = *iter;
+            intPtr[n] = *iter;
+            n++;
         }
     }
     int getLength(){
-        return counter * sizeof(int) + sizeof(int);
+        return counter * sizeof(int16_t);
     }
 private:
-    std::list<int> list;
+    std::list<int16_t> list;
     int counter = 0;
+};
+
+struct CompressedPrecision{
+    char record[2];
+};
+
+class PrecisionHolder{
+public:
+    PrecisionHolder(){}
+    void addRecord(CompressedPrecision* buffer){
+        list.push_back(*buffer);
+        count += sizeof(CompressedPrecision);
+    }
+    int getLength(){
+        return count;
+    }
+    void copy(char* buffer){
+        CompressedPrecision* ptr = (CompressedPrecision*)buffer;
+        int n = 0;
+        for(auto iter = list.begin(); iter != list.end(); iter++){
+            ptr[n] = *iter;
+            n++;
+        }
+    }
+    static double CompressedToDouble(CompressedPrecision* compressedPrecision){
+        double result;
+        char* resultPtr = (char*)&result;
+        memset(resultPtr, 0, sizeof(double));
+        memcpy(&resultPtr[6], compressedPrecision, sizeof(CompressedPrecision));
+        return result;
+    }
+private:
+    std::list<CompressedPrecision> list;
+    int count = 0;
 };
 
 struct ArithmeticCodeHeader{
     int totalLength;
     int symbolArray[256];
     int bytesIncluded;
+};
+
+struct FileHeader{
+    int doubleDataCount;
+    int bitLength;
+    int floatLength;
+    int multiplierLength;
+    int precisionLength;
+    double floatMedian;
+    double precision;
+    PrecisionType precisionType;
 };
 
 #endif //NC_TYPE_H

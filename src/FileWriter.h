@@ -23,6 +23,9 @@ public:
     int writeData(char* buffer, int length){
         fwrite(buffer, 1, length, file);
     }
+    int writeDouble(double data){
+        fwrite(&data, sizeof(double), 1, file);
+    }
 private:
     FILE* file;
 };

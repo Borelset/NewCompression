@@ -20,8 +20,8 @@ public:
     }
 
     int encode(char* bytes, int length, char* output, int bufferLength, int* bitLength){
-        double top = 1.0;
-        double bottom = 0.0;
+        int top = 1.0;
+        int bottom = 0.0;
         double half = 0.5;
         int position = 0;
         int test = bytes[0];
@@ -52,7 +52,7 @@ public:
         int bitsToPlus = 0;
 
         for(int i=0; i<length; i++){
-            double range = top - bottom;
+            int range = top - bottom;
             double shard = range / symbolArray[ENCODE_RANGE-1];
             uint8_t symbol = (uint8_t)bytes[i];
             //printf("symbol:%x\n", symbol);
@@ -213,7 +213,7 @@ private:
         return bottom + (top - bottom) * symbolArray[symbol] / symbolArray[ENCODE_RANGE-1];
     }
     int checkPositive(char byte, int position){
-        int testValue = 0x1 << 7 - position;
+        int testValue = 0x1 << (7 - position);
         return byte == (byte | testValue) ? 1 : 0;
     }
 

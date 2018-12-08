@@ -37,6 +37,9 @@ public:
     int getData(double* buffer, unsigned count){
         return fread(buffer, sizeof(double), count, file);
     }
+    int readFile(char* buffer, unsigned count){
+        return fread(buffer, 1, count, file);
+    }
 private:
     std::string path;
     FileReaderStat stats = FileReaderStat::Init;

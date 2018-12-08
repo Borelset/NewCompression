@@ -14,12 +14,9 @@ public:
     FloatCompressor(double _range, double _median):
         range(_range), median(_median)
     {
-        long* rangeInLong = (long*)&_range;
-        long rangeExpo = (*rangeInLong) << 1 >> 53;
-        int rangeExpoSymbol = (*rangeInLong) >> 63;
-        requiredRangeExpo *= rangeExpoSymbol;
+        requiredRangeExpo = expo(_range * pow(2, 53));
     }
-    void compress(double value, double precision, char* buffer, int* length){
+    double compress(double value, double precision, char* buffer, int* length){
         double normalized = value - median;
         int normManti = mantiBits(normalized);
         long precisionExpo = expo(precision);
@@ -48,6 +45,23 @@ public:
             buffer[2+i] = (normalizedPtr[6-i] << 4) + (normalizedPtr[5-i] >> 4);
         }
         *length = requiredLength;
+
+        double result = 0.0;
+        specialToDouble((uint8_t*)buffer, &result);
+        return result;
+    }
+
+    static int specialToDouble(uint8_t* ptr, double* result){
+        int length = ptr[0] >> 4;
+        memset(result, 0, sizeof(double));
+        uint8_t* resultPtr = (uint8_t*)result;
+        resultPtr[7] = (ptr[0] << 4) + (ptr[1] >> 4);
+        resultPtr[6] = ptr[1] << 4;
+        for(int i=2; i<length; i++){
+            resultPtr[8-i] += ptr[i] >> 4;
+            resultPtr[7-i] += ptr[i] << 4;
+        }
+        return length;
     }
 
     void test(double value){
@@ -58,15 +72,27 @@ public:
         printf("avenge manti:%f\n", (double)totalManti / count);
     }
 
-private:
-    long expo(double value){
+    static long expo(double value){
         uint8_t* valuePtr = (uint8_t*)&value;
-        long expo = valuePtr[7] << 1;
-        expo = expo << (4-1);
-        expo += valuePtr[6] >> 4;
-        expo -= 1023;
-        return expo;
+        uint8_t temp = valuePtr[7] << 1;
+        long expoValue = temp;
+        expoValue = expoValue << (4-1);
+        temp = valuePtr[6] >> 4;
+        expoValue += temp;
+        expoValue -= 1023;
+        if(expoValue == -1023 && value != 0){
+            long fixedExpo = expo(value * pow(2, 53));
+            return fixedExpo - 53;
+        }
+        return expoValue;
     }
+
+    double getMedian(){
+        return median;
+    }
+
+private:
+
 
     int mantiBits(double value){
         uint8_t* bytes = (uint8_t*)&value;
