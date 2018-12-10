@@ -16,5 +16,6 @@ gzip -1 data.dat.nc
 
 //解压
 ./NC data.dat.nc 1
+//生成data.dat.nc.dc
 
 ```
