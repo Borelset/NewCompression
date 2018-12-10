@@ -19,7 +19,7 @@ public:
     FileReader(const std::string& _path){
         file = fopen(_path.c_str(), "r");
         if(file == nullptr){
-            printf("file to open:%s\n", _path.c_str());
+            printf("no file to open:%s\n", _path.c_str());
             exit(0);
         }
         path = _path;

@@ -119,12 +119,6 @@ public:
                 double diffValue = input[i] - lastValues[2] - floatCompressor.getMedian();
                 int multiplier = diffValue / fixedAcceptedRange;
 
-                double diffValue2 = input[i] - lastValues[1] - floatCompressor.getMedian();
-                int multiplier2 = diffValue2 / fixedAcceptedRange;
-
-                double diffValue3 = input[i] - lastValues[0] - floatCompressor.getMedian();
-                int multiplier3 = diffValue3 / fixedAcceptedRange;
-
                 lastValues[0] = lastValues[1];
                 lastValues[1] = lastValues[2];
 
@@ -137,10 +131,6 @@ public:
 
                     fstream << "ori:" << input[i] << "\tpred:" << lastValues[2] << "\trate:" << lastValues[2] / input[i] << "\ttype:" << 1;
                     fstream << "\tmultiplier:" << multiplier << " fixedAcceptedRange:" << fixedAcceptedRange << std::endl;
-                }else if(fixedAcceptedRange != 0 && abs(multiplier2) < compressionConfig.diffRange){
-                    skip++;
-                }else if(fixedAcceptedRange != 0 && abs(multiplier3) < compressionConfig.diffRange){
-                    skip++;
                 }else{
                     //printf("ori:%f, prev:%f, accr:%f\n", input[i], lastValues[2] + floatCompressor.getMedian(), acceptedRange);
                     //printf("\tmultiplier:%d\n", multiplier);
@@ -169,7 +159,7 @@ public:
                 bitHolderIndex++;
             }
         }
-        printf("hitting=%d, missing=%d, ranging=%d, skip=%d, total=%d\n", hitting, missing, ranging, skip, hitting+missing+ranging);
+        printf("hitting=%d, ranging=%d, missing=%d, skip=%d, total=%d\n", hitting, ranging, missing, skip, hitting+missing+ranging);
         fstream.close();
     }
 private:

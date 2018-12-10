@@ -7,6 +7,7 @@
 #include "src/bhcoder.hxx"
 #include "src/Type.h"
 #include "src/pcoder.hxx"
+#include "src/Huffman.h"
 #include <cstdlib>
 #include <sys/time.h>
 
@@ -20,7 +21,8 @@ int main(int argc, char** argv) {
 
         gettimeofday(&pre0, nullptr);
         CompressionConfig compressionConfig;
-        compressionConfig.range = 0.0001;
+        printf("range:%f\n", atof(argv[3]));
+        compressionConfig.range = atof(argv[3]);
         compressionConfig.precisionType = PrecisionType::Relative;
         std::string path(argv[1]);
         FileReader fileReader(path);
@@ -69,11 +71,27 @@ int main(int argc, char** argv) {
         fileHeader.precisionType = compressionConfig.precisionType;
         fileHeader.precision = compressionConfig.range;
 
-        printf("bitLength:%d, floatLength:%d, multiplierLength:%d, precisionLength:%d\n", bitBufferLength, floatBufferLength, multiplierBufferLength, precisionBufferLength);
+        printf("bitLength:%d, multiplierLength:%d, floatLength:%d, precisionLength:%d\n", bitBufferLength, multiplierBufferLength, floatBufferLength, precisionBufferLength);
+        printf("size:%f, %f, %f, %f\n", (double)bitBufferLength/1024, (double)multiplierBufferLength/1024, (double)floatBufferLength/1024, (double)precisionBufferLength/1024);
         //gettimeofday(&pre1, nullptr);
         //double pre1Duration = (pre1.tv_sec-pre0.tv_sec) + double(pre1.tv_usec - pre0.tv_usec) / 1000000;
         double sizeInMB = (double)fileSize / 1024 / 1024;
         //printf("pre1 duration:%fs\nspeed1:%f\n", pre1Duration, sizeInMB / pre1Duration);
+
+        /*
+        unsigned char* multiplierHuffmanBuffer;
+        int newLength = 0;
+        int multipliers[multiplierBufferLength / 2];
+        uint16_t* uptr = (uint16_t*)multiplierBuffer;
+        for(int i = 0; i<multiplierBufferLength / 2; i++){
+            multipliers[i] = uptr[i];
+        }
+        myinit();
+        encode_withTree(multipliers, multiplierBufferLength / 2, &multiplierHuffmanBuffer, &newLength);
+        mydeinit();
+        printf("before:%d, huffmaned length:%d\n", multiplierBufferLength, newLength);
+        free(multiplierHuffmanBuffer);
+         */
 
         std::string newFileName(argv[1]);
         newFileName += ".nc";
@@ -100,6 +118,7 @@ int main(int argc, char** argv) {
         printf("pre2 duration:%fs\nspeed:%fMB/s\n", pre2Duration, sizeInMB / pre2Duration);
 
 
+        /*
         struct timeval t0, t1;
         gettimeofday(&t0, nullptr);
         //staticcodes::acoder ac(ifs, ofs);
@@ -115,6 +134,7 @@ int main(int argc, char** argv) {
         //staticcodes::pcoder<staticcodes::huffman> ph(ifs, ofs);
         gettimeofday(&t1, nullptr);
         printf("sh duration:%fs\n", (t1.tv_sec-t0.tv_sec) + double(t1.tv_usec - t0.tv_usec) / 1000000);
+         */
         
 
     }else{
@@ -146,7 +166,8 @@ int main(int argc, char** argv) {
         double floatMedian = fileHeader.floatMedian;
         int doubleCount = fileHeader.doubleDataCount;
 
-        printf("bitLength:%d, floatLength:%d, multiplierLength:%d, precisionLength:%d\n", fileHeader.bitLength, fileHeader.floatLength, fileHeader.multiplierLength, fileHeader.precisionLength);
+        printf("bitLength:%d, multiplierLength:%d, floatLength:%d, precisionLength:%d\n", fileHeader.bitLength, fileHeader.multiplierLength, fileHeader.floatLength, fileHeader.precisionLength);
+        printf("size:%f, %f, %f\n", (double)fileHeader.bitLength/1024, (double)fileHeader.multiplierLength/1024, (double)fileHeader.floatLength/1024);
 
         FileWriter fileWriter(outName + ".dc");
         double lastValue[3] = {0};

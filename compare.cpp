@@ -46,8 +46,14 @@ int main(int argc, char** argv){
     double total = 0.0;
     int count = 0;
     for(int i=0; i<size/8; i++){
+        if(oriBuffer[i] == 0){
+            continue;
+        }
         double delta = compressedBuffer[i] / oriBuffer[i];
         total+=fabs(delta);
+        if(fabs(delta - 1) > 0.01){
+            printf("i=%d, rate:%f\n", i, delta);
+        }
         count++;
         fstream << "ori:" << oriBuffer[i] << " compressed:" << compressedBuffer[i] << " rate:" << delta << std::endl;
     }
