@@ -218,11 +218,15 @@ void init(int *s, int length)
 		index = s[i];
 		freq[index]++;
 	}
- 
+
+	int count = 0;
 	for (i = 0; i < allNodes; i++)
-		if (freq[i]) 
-			qinsert(new_node(freq[i], i, 0, 0));
- 
+		if (freq[i]){
+            qinsert(new_node(freq[i], i, 0, 0));
+            count++;
+        }
+    printf("non empty count:%d\n", count);
+
 	while (qend > 2) 
 		qinsert(new_node(0, 0, qremove(), qremove()));
  
@@ -722,6 +726,7 @@ void encode_withTree(int *s, int length, unsigned char **out, int *outSize)
 	init(s, length);
 	for (i = 0; i < stateNum; i++)
 		if (code[i]) nodeCount++;
+    printf("node count:%d\n", nodeCount);
 	nodeCount = nodeCount*2-1;
 	unsigned int treeByteSize = convert_HuffTree_to_bytes_anyStates(nodeCount, &treeBytes);
 	//printf("treeByteSize=%d\n", treeByteSize);
