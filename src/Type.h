@@ -34,7 +34,7 @@ double m4(double x1, double x2, double x3){
 }
 
 double m5(double x1, double x2, double x3){
-    return x3;
+    return x1;
 }
 
 static std::vector<Callbacks> callbacks = {

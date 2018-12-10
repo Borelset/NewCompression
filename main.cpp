@@ -177,7 +177,6 @@ int main(int argc, char** argv) {
             }*/
 
             uint8_t method = -1;
-            uint8_t test;
 
             switch (groupOffset){
                 case 0:
@@ -250,8 +249,7 @@ int main(int argc, char** argv) {
         for(int i=0; i<8; i++){
             printf("method[%d]:%d\n", i, array[i]);
         }
-
-
+        fstream.close();
     }
 
 

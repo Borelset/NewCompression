@@ -59,5 +59,6 @@ int main(int argc, char** argv){
     }
     printf("\n");
     printf("delta rate:%f\n", total / count);
+    fstream.close();
 
 }

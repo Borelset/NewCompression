@@ -159,7 +159,7 @@ public:
                 bitHolderIndex++;
             }
         }
-        printf("hitting=%d, ranging=%d, missing=%d, skip=%d, total=%d\n", hitting, ranging, missing, skip, hitting+missing+ranging);
+        printf("hitting=%d, quantting=%d, missing=%d, skip=%d, total=%d\n", hitting, ranging, missing, skip, hitting+missing+ranging);
         fstream.close();
     }
 private:
